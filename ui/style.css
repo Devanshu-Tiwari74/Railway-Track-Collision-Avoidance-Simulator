@@ -1,0 +1,765 @@
+/*
+ * RailOps Visualizer — 50% Interim Milestone
+ * 
+ * Design direction: Industrial dispatch console.
+ * Warm neutral darks, functional signal colours drawn from
+ * real railway infrastructure, restrained typography.
+ * No Tailwind default palette. No neon glow effects.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* ── Surfaces ── */
+  --bg-root:      #191a17;
+  --bg-canvas:    #1f201d;
+  --bg-surface:   #272822;
+  --bg-elevated:  #32332d;
+  --bg-inset:     #141513;
+  --bg-hover:     #3a3b35;
+
+  /* ── Borders ── */
+  --border-dim:    #3a3b35;
+  --border-medium: #4d4e47;
+
+  /* ── Text ── */
+  --text-high:   #e2dfd8;
+  --text-mid:    #a09a90;
+  --text-low:    #65615b;
+
+  /* ── Railway signal semantics ── */
+  --sig-clear:      #4e9a6d;
+  --sig-clear-dim:  rgba(78, 154, 109, 0.15);
+  --sig-caution:    #c49832;
+  --sig-caution-dim:rgba(196, 152, 50, 0.15);
+  --sig-danger:     #b5433a;
+  --sig-danger-dim: rgba(181, 67, 58, 0.15);
+
+  /* ── Accent ── */
+  --accent:       #6889a7;
+  --accent-dim:   rgba(104, 137, 167, 0.12);
+  --accent-hover: #7d9dba;
+
+  /* ── Track rendering ── */
+  --track-dim:    #3a3b35;
+  --track-active: #6889a7;
+
+  /* ── Typography ── */
+  --font-body: 'DM Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Menlo', 'Consolas', monospace;
+
+  /* ── Layout ── */
+  --header-h: 52px;
+  --dock-h:   210px;
+  --radius:   3px;
+
+  /* ── Timing ── */
+  --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%; overflow: hidden;
+  background: var(--bg-root);
+  color: var(--text-high);
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── App shell ── */
+.app {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* ================================================================
+   HEADER
+   ================================================================ */
+.header {
+  height: var(--header-h);
+  background: var(--bg-canvas);
+  border-bottom: 1px solid var(--border-dim);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 20px;
+  flex-shrink: 0;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: auto;
+}
+
+.brand-mark {
+  width: 28px; height: 28px;
+  background: var(--accent);
+  border-radius: var(--radius);
+  display: grid; place-items: center;
+}
+
+.brand-mark svg { width: 16px; height: 16px; color: #fff; }
+
+.brand-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-high);
+  letter-spacing: 0.01em;
+}
+
+.brand-tag {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 2px 7px;
+  border-radius: var(--radius);
+  margin-left: 6px;
+}
+
+/* ── Controls ── */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-high);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-dim);
+  padding: 5px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background 120ms var(--ease), border-color 120ms var(--ease);
+  user-select: none;
+}
+
+.btn:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-medium);
+}
+
+.btn:active { transform: translateY(1px); }
+
+.btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+.btn-accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn-accent:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.btn-warn {
+  color: var(--sig-danger);
+  border-color: rgba(181, 67, 58, 0.3);
+}
+
+.btn-warn:hover {
+  background: var(--sig-danger-dim);
+  border-color: var(--sig-danger);
+  color: var(--text-high);
+}
+
+.controls-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border-dim);
+  margin: 0 4px;
+}
+
+.speed-select {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-high);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-dim);
+  padding: 5px 8px;
+  border-radius: var(--radius);
+  outline: none;
+  cursor: pointer;
+}
+
+/* ── Header status cluster ── */
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-left: 12px;
+}
+
+.status-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.status-label {
+  font-size: 10px;
+  color: var(--text-low);
+  font-weight: 500;
+}
+
+.status-value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-high);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot-live {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--sig-clear);
+}
+
+.dot-live.stopped {
+  background: var(--sig-caution);
+  animation: none;
+}
+
+@keyframes subtle-pulse {
+  0%, 100% { opacity: .7; }
+  50% { opacity: 1; }
+}
+
+.dot-live:not(.stopped) {
+  animation: subtle-pulse 2.4s ease-in-out infinite;
+}
+
+.btn-link {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-mid);
+  background: none;
+  border: 1px solid var(--border-dim);
+  padding: 5px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: color 120ms var(--ease), border-color 120ms var(--ease);
+}
+
+.btn-link:hover {
+  color: var(--text-high);
+  border-color: var(--border-medium);
+}
+
+/* ================================================================
+   STAGE — the hero track canvas
+   ================================================================ */
+.stage {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-canvas);
+  /* Subtle engineering grid — very faint */
+  background-image:
+    linear-gradient(var(--border-dim) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border-dim) 1px, transparent 1px);
+  background-size: 48px 48px;
+  background-position: center;
+  background-blend-mode: overlay;
+  opacity: 1;
+}
+
+/* Faint the grid lines */
+.stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--bg-canvas);
+  opacity: 0.82;
+  pointer-events: none;
+}
+
+.stage-label {
+  position: absolute;
+  top: 14px;
+  left: 20px;
+  z-index: 5;
+}
+
+.stage-label h2 {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-low);
+  letter-spacing: 0.02em;
+}
+
+.stage-label p {
+  font-size: 11px;
+  color: var(--text-low);
+  opacity: 0.7;
+}
+
+/* Scenario quick-picks */
+.scenarios {
+  position: absolute;
+  top: 14px;
+  right: 20px;
+  display: flex;
+  gap: 6px;
+  z-index: 10;
+}
+
+.scenario-chip {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-mid);
+  background: rgba(39, 40, 34, 0.9);
+  border: 1px solid var(--border-dim);
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: color 120ms var(--ease), border-color 120ms var(--ease);
+}
+
+.scenario-chip:hover {
+  color: var(--text-high);
+  border-color: var(--border-medium);
+  background: var(--bg-elevated);
+}
+
+/* Track canvas */
+.track-viewport {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 32px;
+}
+
+.rail-svg {
+  width: 100%;
+  max-width: 1100px;
+  height: auto;
+  max-height: calc(100vh - var(--header-h) - var(--dock-h) - 32px);
+}
+
+/* SVG track elements */
+.trk-sleeper {
+  fill: none;
+  stroke: #2a2b26;
+  stroke-width: 12px;
+  stroke-dasharray: 2 10;
+}
+
+.trk-rail {
+  fill: none;
+  stroke: var(--track-dim);
+  stroke-width: 6px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke 200ms var(--ease);
+}
+
+.trk-rail.active {
+  stroke: var(--track-active);
+}
+
+/* Signal posts */
+.sig-group { cursor: default; }
+.sig-group:hover { opacity: 0.9; }
+
+.sig-housing {
+  fill: var(--bg-inset);
+  stroke: var(--border-dim);
+  stroke-width: 1px;
+}
+
+.sig-lamp-off { fill: #2a2b26; }
+
+.sig-lamp-green {
+  fill: var(--sig-clear);
+  filter: drop-shadow(0 0 3px var(--sig-clear));
+}
+
+.sig-lamp-amber {
+  fill: var(--sig-caution);
+  filter: drop-shadow(0 0 3px var(--sig-caution));
+}
+
+.sig-lamp-red {
+  fill: var(--sig-danger);
+  filter: drop-shadow(0 0 3px var(--sig-danger));
+}
+
+/* Platform area */
+.plat-housing {
+  fill: rgba(104, 137, 167, 0.04);
+  stroke: rgba(104, 137, 167, 0.2);
+  stroke-width: 1px;
+  stroke-dasharray: 4 4;
+  rx: 3px;
+}
+
+.plat-housing.occupied {
+  fill: rgba(104, 137, 167, 0.08);
+  stroke: var(--accent);
+  stroke-dasharray: none;
+}
+
+/* Train markers */
+.train-group {
+  transition: transform 280ms linear;
+}
+
+.train-body-t1 {
+  fill: #3d6e8e;
+  stroke: #5a96bb;
+  stroke-width: 1.5px;
+  rx: 3px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.5));
+}
+
+.train-body-t2 {
+  fill: #8e6a3d;
+  stroke: #bb923c;
+  stroke-width: 1.5px;
+  rx: 3px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.5));
+}
+
+.train-nose {
+  fill: #d4d0c8;
+}
+
+.train-id {
+  fill: #fff;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+/* SVG labels */
+.svg-label {
+  fill: var(--text-low);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.svg-label-accent {
+  fill: var(--sig-caution);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.svg-label-plat {
+  fill: var(--accent);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ================================================================
+   DOCK — bottom telemetry panels
+   ================================================================ */
+.dock {
+  height: var(--dock-h);
+  background: var(--bg-root);
+  border-top: 1px solid var(--border-dim);
+  display: grid;
+  grid-template-columns: 280px 280px 1fr;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.panel {
+  background: var(--bg-canvas);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-head {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border-dim);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-mid);
+}
+
+.panel-note {
+  font-size: 10px;
+  color: var(--text-low);
+  font-family: var(--font-mono);
+}
+
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.panel-body::-webkit-scrollbar { width: 3px; }
+.panel-body::-webkit-scrollbar-track { background: transparent; }
+.panel-body::-webkit-scrollbar-thumb { background: var(--border-dim); border-radius: 3px; }
+
+/* ── PCB rows ── */
+.pcb-row {
+  background: var(--bg-surface);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: border-color 120ms var(--ease);
+}
+
+.pcb-row:hover {
+  border-color: var(--border-dim);
+}
+
+.pcb-name {
+  font-weight: 600;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pcb-meta {
+  font-size: 11px;
+  color: var(--text-low);
+}
+
+.state-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+.state-running  { background: var(--sig-clear-dim);   color: var(--sig-clear); }
+.state-waiting  { background: var(--sig-caution-dim); color: var(--sig-caution); }
+.state-ready    { background: var(--accent-dim);      color: var(--accent); }
+.state-terminated { background: rgba(101, 97, 91, 0.1); color: var(--text-low); }
+
+/* ── Resource rows ── */
+.res-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0;
+  font-size: 11px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.res-row:last-child { border-bottom: none; }
+
+.res-name { color: var(--text-mid); }
+
+.res-status {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 11px;
+}
+
+.res-locked { color: var(--sig-danger); }
+.res-free   { color: var(--sig-clear); }
+
+.res-queue {
+  font-size: 10px;
+  color: var(--sig-caution);
+  margin-left: 6px;
+}
+
+.sync-note {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-dim);
+  font-size: 10px;
+  color: var(--text-low);
+}
+
+/* ── Event log ── */
+.evt-line {
+  display: flex;
+  gap: 6px;
+  padding: 2px 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.evt-time { color: var(--text-low); flex-shrink: 0; }
+
+.evt-tag {
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.evt-tag-collision { color: var(--sig-caution); }
+.evt-tag-signal    { color: var(--sig-clear); }
+.evt-tag-resource  { color: var(--accent); }
+.evt-tag-thread    { color: var(--text-mid); }
+.evt-tag-ctrl      { color: var(--text-mid); font-style: italic; }
+
+.evt-msg {
+  color: var(--text-high);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ================================================================
+   MODAL — SQL Audit Overlay
+   ================================================================ */
+.modal-bg {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 21, 19, 0.88);
+  z-index: 100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.modal-bg.open { display: flex; }
+
+.modal {
+  width: 92%;
+  max-width: 880px;
+  max-height: 78vh;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-dim);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-head {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-dim);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-heading {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-high);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-low);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.modal-close:hover { color: var(--text-high); }
+
+.modal-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.modal-intro {
+  font-size: 12px;
+  color: var(--text-mid);
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+/* SQL table */
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.tbl th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-mid);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-dim);
+  background: var(--bg-surface);
+  position: sticky;
+  top: 0;
+}
+
+.tbl td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  vertical-align: top;
+}
+
+.tbl code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--bg-surface);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.tbl-member { font-weight: 600; color: var(--accent); }
+.tbl-status { color: var(--sig-clear); font-weight: 500; }
+
+/* ── Responsive ── */
+@media (max-width: 1100px) {
+  .dock {
+    grid-template-columns: 1fr 1fr;
+    height: auto;
+    max-height: 260px;
+  }
+  .dock > :last-child {
+    grid-column: span 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot-live { animation: none !important; }
+  .train-group { transition: none !important; }
+}

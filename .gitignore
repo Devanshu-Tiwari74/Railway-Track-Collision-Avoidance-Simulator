@@ -1,0 +1,19 @@
+.env
+build/
+*.exe
+
+# Ignore .agents folder
+.agents/
+agents/
+.design-system/
+design-system/
+
+
+# Ignore text files (preserve CMakeLists.txt)
+*.txt
+!CMakeLists.txt
+
+# Ignore all markdown files except README.md
+*.md
+!README.md
+!readme.md

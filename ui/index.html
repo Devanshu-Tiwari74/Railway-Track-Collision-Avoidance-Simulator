@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RailOps — Railway Simulation Visualizer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+
+    <!-- ── Header ── -->
+    <header class="header">
+      <div class="header-brand">
+        <div class="brand-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="3" width="16" height="16" rx="2"/>
+            <path d="M4 11h16"/>
+            <path d="M12 3v8"/>
+            <path d="m8 19-2 3"/>
+            <path d="m16 19 2 3"/>
+          </svg>
+        </div>
+        <span class="brand-name">RailOps</span>
+        <span class="brand-tag">50% interim</span>
+      </div>
+
+      <div class="controls">
+        <button id="btnPlay" class="btn btn-accent">
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          Pause
+        </button>
+        <button id="btnReset" class="btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+          </svg>
+          Reset
+        </button>
+        <div class="controls-sep"></div>
+        <button id="btnTriggerConflict" class="btn btn-warn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+          Trigger collision
+        </button>
+        <div class="controls-sep"></div>
+        <select id="speedSelect" class="speed-select">
+          <option value="0.5">0.5×</option>
+          <option value="1.0" selected>1×</option>
+          <option value="1.5">1.5×</option>
+        </select>
+      </div>
+
+      <div class="header-status">
+        <button id="btnViewSQL" class="btn-link">Database audit</button>
+        <div class="status-item">
+          <span class="status-label">Time</span>
+          <span id="simTimeDisplay" class="status-value">00:00.0</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Engine</span>
+          <span class="status-value">
+            <span id="simStatusDot" class="dot-live"></span>
+            <span id="simStatusText">Running</span>
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ── Stage: track schematic ── -->
+    <main class="stage">
+      <div class="stage-label">
+        <h2>Track schematic</h2>
+        <p>Mutexes, collision avoidance, signal gating</p>
+      </div>
+
+      <div class="scenarios">
+        <button class="scenario-chip" id="btnDemoStaggered">Sequential traffic</button>
+        <button class="scenario-chip" id="btnDemoContention">Junction contention</button>
+      </div>
+
+      <div class="track-viewport">
+        <svg class="rail-svg" viewBox="0 0 1100 400" preserveAspectRatio="xMidYMid meet">
+
+          <!-- Sleepers -->
+          <path d="M 80,140 L 310,140" class="trk-sleeper"/>
+          <path d="M 80,270 L 310,270" class="trk-sleeper"/>
+          <path d="M 310,140 C 370,140 390,205 430,205 L 640,205" class="trk-sleeper"/>
+          <path d="M 310,270 C 370,270 390,205 430,205 L 640,205" class="trk-sleeper"/>
+          <path d="M 640,205 L 920,205" class="trk-sleeper"/>
+          <path d="M 920,205 L 1040,205" class="trk-sleeper"/>
+
+          <!-- Rails -->
+          <path id="track1Rail" d="M 80,140 L 310,140" class="trk-rail"/>
+          <path id="track3Rail" d="M 80,270 L 310,270" class="trk-rail"/>
+          <path id="juncNorthRail" d="M 310,140 C 370,140 390,205 430,205" class="trk-rail"/>
+          <path id="juncSouthRail" d="M 310,270 C 370,270 390,205 430,205" class="trk-rail"/>
+          <path id="junc2Rail" d="M 430,205 L 640,205" class="trk-rail"/>
+          <path id="plat4Rail" d="M 640,205 L 920,205" class="trk-rail"/>
+          <path id="outRail" d="M 920,205 L 1040,205" class="trk-rail"/>
+
+          <!-- Labels -->
+          <text x="130" y="122" class="svg-label">Track 1 — exclusive mutex</text>
+          <text x="130" y="305" class="svg-label">Track 3 — exclusive mutex</text>
+
+          <!-- Junction 2 critical section box -->
+          <rect id="junc2Box" x="414" y="172" width="236" height="66" fill="rgba(196, 152, 50, 0.03)" stroke="rgba(196, 152, 50, 0.18)" stroke-dasharray="3 3" rx="3"/>
+          <text x="424" y="164" class="svg-label-accent">Junction 2 — collision check zone</text>
+
+          <!-- Platform 4 enclosure -->
+          <rect id="plat4Box" x="690" y="170" width="220" height="70" class="plat-housing"/>
+          <text x="700" y="163" class="svg-label-plat">Platform 4 — station</text>
+
+          <!-- Signal 1 -->
+          <g id="sig1Group" class="sig-group" transform="translate(308, 92)">
+            <rect class="sig-housing" x="0" y="0" width="16" height="38" rx="2"/>
+            <circle id="sig1R" cx="8" cy="8" r="4" class="sig-lamp-off"/>
+            <circle id="sig1Y" cx="8" cy="19" r="4" class="sig-lamp-off"/>
+            <circle id="sig1G" cx="8" cy="30" r="4" class="sig-lamp-green"/>
+            <text x="22" y="22" class="svg-label">S1</text>
+          </g>
+
+          <!-- Signal 2 -->
+          <g id="sig2Group" class="sig-group" transform="translate(470, 135)">
+            <rect class="sig-housing" x="0" y="0" width="16" height="38" rx="2"/>
+            <circle id="sig2R" cx="8" cy="8" r="4" class="sig-lamp-off"/>
+            <circle id="sig2Y" cx="8" cy="19" r="4" class="sig-lamp-off"/>
+            <circle id="sig2G" cx="8" cy="30" r="4" class="sig-lamp-green"/>
+            <text x="22" y="22" class="svg-label">S2</text>
+          </g>
+
+          <!-- Signal 3 -->
+          <g id="sig3Group" class="sig-group" transform="translate(308, 232)">
+            <rect class="sig-housing" x="0" y="0" width="16" height="38" rx="2"/>
+            <circle id="sig3R" cx="8" cy="8" r="4" class="sig-lamp-off"/>
+            <circle id="sig3Y" cx="8" cy="19" r="4" class="sig-lamp-off"/>
+            <circle id="sig3G" cx="8" cy="30" r="4" class="sig-lamp-green"/>
+            <text x="22" y="22" class="svg-label">S3</text>
+          </g>
+
+          <!-- Signal 4 -->
+          <g id="sig4Group" class="sig-group" transform="translate(640, 145)">
+            <rect class="sig-housing" x="0" y="0" width="16" height="38" rx="2"/>
+            <circle id="sig4R" cx="8" cy="8" r="4" class="sig-lamp-off"/>
+            <circle id="sig4Y" cx="8" cy="19" r="4" class="sig-lamp-off"/>
+            <circle id="sig4G" cx="8" cy="30" r="4" class="sig-lamp-green"/>
+            <text x="22" y="22" class="svg-label">S4</text>
+          </g>
+
+          <!-- Train 1 -->
+          <g id="train1Carriage" class="train-group" transform="translate(80, 140)">
+            <rect class="train-body-t1" x="-24" y="-11" width="48" height="22"/>
+            <polygon class="train-nose" points="24,-5 30,0 24,5"/>
+            <text class="train-id" x="0" y="1">T101</text>
+          </g>
+
+          <!-- Train 2 -->
+          <g id="train2Carriage" class="train-group" transform="translate(80, 270)">
+            <rect class="train-body-t2" x="-24" y="-11" width="48" height="22"/>
+            <polygon class="train-nose" points="24,-5 30,0 24,5"/>
+            <text class="train-id" x="0" y="1">T102</text>
+          </g>
+
+        </svg>
+      </div>
+    </main>
+
+    <!-- ── Dock: telemetry panels ── -->
+    <footer class="dock">
+
+      <!-- Train threads & PCBs -->
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Train processes</span>
+          <span class="panel-note">trains, routes</span>
+        </div>
+        <div id="pcbContainer" class="panel-body"></div>
+      </div>
+
+      <!-- Resource table -->
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Resource locks</span>
+          <span class="panel-note">resources, alloc</span>
+        </div>
+        <div class="panel-body">
+          <div id="resTable"></div>
+          <div class="sync-note">Synchronisation: mutex + condition variable wait queues</div>
+        </div>
+      </div>
+
+      <!-- Event stream -->
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Event stream</span>
+          <span class="panel-note">event_log</span>
+        </div>
+        <div class="panel-body">
+          <div id="eventFeed"></div>
+        </div>
+      </div>
+
+    </footer>
+
+    <!-- ── Modal: SQL audit ── -->
+    <div id="sqlModal" class="modal-bg">
+      <div class="modal">
+        <div class="modal-head">
+          <span class="modal-heading">Interim database schema (10 tables in pgAdmin 4)</span>
+          <button id="btnCloseSQL" class="modal-close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="modal-scroll">
+          <p class="modal-intro">
+            The C++ simulation pushes audit records to PostgreSQL asynchronously via a dedicated worker thread. These are the 10 tables active for the 50% interim milestone.
+          </p>
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Owner</th>
+                <th>Tables</th>
+                <th>Purpose</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="tbl-member">Member 1</td>
+                <td><code>trains</code>, <code>train_routes</code></td>
+                <td>Train registry and normalised route waypoints.</td>
+                <td class="tbl-status">Loaded</td>
+              </tr>
+              <tr>
+                <td class="tbl-member">Member 2</td>
+                <td><code>resources</code>, <code>allocations</code></td>
+                <td>Infrastructure inventory and lock-grant history.</td>
+                <td class="tbl-status">Loaded</td>
+              </tr>
+              <tr>
+                <td class="tbl-member">Member 3</td>
+                <td><code>collision_avoidance_logs</code></td>
+                <td>Averted collision audit trail.</td>
+                <td class="tbl-status">Loaded</td>
+              </tr>
+              <tr>
+                <td class="tbl-member">Member 4</td>
+                <td><code>signals</code>, <code>signal_state_history</code></td>
+                <td>Signal configuration and aspect change log.</td>
+                <td class="tbl-status">Loaded</td>
+              </tr>
+              <tr>
+                <td class="tbl-member">Member 5</td>
+                <td><code>simulation_runs</code>, <code>event_log</code></td>
+                <td>Session tracking and unified FIFO audit ledger.</td>
+                <td class="tbl-status">Loaded</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
