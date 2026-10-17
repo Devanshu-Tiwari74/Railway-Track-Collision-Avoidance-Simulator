@@ -10,9 +10,8 @@ namespace rail {
 using TrainId    = int;
 using ResourceId = int;
 
-// ============================================================================
 // Member 1: Train Processes & Scheduling Subsystem
-// ============================================================================
+
 
 enum class TrainState { 
     NEW, 
@@ -37,9 +36,8 @@ struct Scheduler {
     virtual void updateState(TrainId train, TrainState state) = 0;
 };
 
-// ============================================================================
 // Member 2: Resource Management & Concurrency Primitives
-// ============================================================================
+
 
 enum class ResourceType { 
     EXCLUSIVE, 
@@ -93,9 +91,8 @@ struct Persistence {
     virtual void enqueueRecord(const Record& record) = 0;
 };
 
-// ============================================================================
 // Member 3: Collision Detection & Deadlock Engine
-// ============================================================================
+
 
 struct DeadlockCycle {
     std::vector<TrainId>    trains;
@@ -110,9 +107,7 @@ struct CollisionDeadlock {
     virtual void                       recover(const DeadlockCycle& cycle) = 0;
 };
 
-// ============================================================================
 // Member 4: Signal Control & Safety Incident Management
-// ============================================================================
 
 enum class SignalState { 
     RED, 
@@ -129,9 +124,7 @@ struct SignalControl {
     virtual void        reportIncident(const std::string& description) = 0;
 };
 
-// ============================================================================
 // Member 5: IPC & Simulation Controller
-// ============================================================================
 
 enum class SimState { 
     RUNNING, 
@@ -153,4 +146,4 @@ struct Controller {
     virtual void setState(SimState state) = 0;
 };
 
-}  // namespace rail
+} 
